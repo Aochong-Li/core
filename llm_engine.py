@@ -10,8 +10,6 @@ from vllm import LLM, SamplingParams
 
 # Allow longer max_model_len in vLLM
 os.environ["VLLM_ALLOW_LONG_MAX_MODEL_LEN"] = "1"
-# os.environ['CURL_CA_BUNDLE'] = ''
-# os.environ['REQUESTS_CA_BUNDLE'] = ''
 
 @dataclass
 class ModelConfig:
@@ -166,7 +164,7 @@ class OpenLMEngine:
 
 if __name__ == '__main__':
     config = ModelConfig(
-        model_name="/home/al2644/research/codebase/reasoning/rlvr/outputs/countdown/Qwen2.5-3B-sft-1epoch-countdown-level4-5-1epochs-4rollouts-4096max-length/global_step_156/actor",
+        model_name="aochongoliverli/Qwen2.5-3B-countdown-level4-5-grpo-20k-1epoch",
         tensor_parallel_size=2,
         gpu_memory_utilization=0.85,
         dtype="bfloat16",
