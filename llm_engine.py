@@ -164,11 +164,16 @@ class OpenLMEngine:
 
 if __name__ == '__main__':
     config = ModelConfig(
+<<<<<<< Updated upstream
         model_name="aochongoliverli/Qwen2.5-3B-countdown-level4-5-grpo-20k-1epoch",
         tensor_parallel_size=2,
+=======
+        model_name="/mnt/home/al2644/research/projects/rlvr/outputs/deepmath/R1-Distill-Qwen-1.5B-DeepMath-stage1-grpo-level3-4-5epochs-4rollouts-8192max-length/global_step_475/actor",
+        tensor_parallel_size=1,
+>>>>>>> Stashed changes
         gpu_memory_utilization=0.85,
         dtype="bfloat16",
-        max_tokens=8192,
+        max_tokens=16384,
         temperature=0.6,
         top_p=1.0,
         top_k=-1
