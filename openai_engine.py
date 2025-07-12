@@ -3,7 +3,7 @@
 import os
 import json
 
-import openaiapi
+from core import openaiapi
 import pandas as pd
 from tqdm import tqdm
 import logging
