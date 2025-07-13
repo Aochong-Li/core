@@ -53,6 +53,13 @@ def create_client(client_name: str) -> OpenAI:
             api_key=TOGETHERAI_API_KEY,
             base_url = 'https://api.together.xyz/v1'
         )
+    elif client_name == 'openrouter':
+        OPENROUTER_API_KEY = os.environ['OPENROUTER_API_KEY']
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=OPENROUTER_API_KEY
+        )
+
     else:
         raise ValueError(f'Invalid client name: {client_name}')
 

@@ -24,6 +24,7 @@ class OpenAI_Engine():
         model: str = "gpt-4.1",
         client_name: str = "openai",
         temperature: float = 0.7,
+        top_p: float = 1.0,
         max_tokens: int = 1024,
         n: int = 1,
         batch_size: int = 20,
@@ -36,13 +37,14 @@ class OpenAI_Engine():
         self.template_map = template_map
 
         root = Path(batch_io_root) if batch_io_root else Path(os.environ.get("BATCH_IO_ROOT", ""))
-        self.input_filepath = str(root / f"{nick_name}_input.jsonl")
+        self.input_filepath = root / f"{nick_name}_input.jsonl"
         self.batch_log_filepath = root / f"{nick_name}_batch_log.json"
-        self.cache_filepath = cache_filepath if cache_filepath else str(root / f"{nick_name}_cache.pkl")
+        self.cache_filepath = cache_filepath if cache_filepath else root / f"{nick_name}_cache.pkl"
 
         self.model = model
         self.client_name = client_name
         self.temperature = temperature
+        self.top_p = top_p
         self.max_tokens = max_tokens
         self.n = n
         self.batch_size = batch_size
@@ -72,7 +74,8 @@ class OpenAI_Engine():
                 custom_id=f'idx_{idx}',
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                n=self.n
+                n=self.n,
+                top_p=self.top_p
             )
 
             openaiapi.cache_batch_query(self.input_filepath, query)
