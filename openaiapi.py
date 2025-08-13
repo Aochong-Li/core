@@ -163,6 +163,10 @@ def generate_completions(
                     stop=stop,
                 )
             resp = client.completions.create(**kwargs)
+            if model == "deepseek-reasoner":
+                return [
+                    f"{c.message.reasoning_content}\n</think>\n{c.message.content}" for c in resp.choices
+                ], errors, attempt
             return [c.text for c in resp.choices], errors, attempt
         except RETRYABLE as exc:
             errors.append(repr(exc))
@@ -439,6 +443,7 @@ def batch_completions_template(
 
 def batch_chat_completions_template(
     input_prompt: str,
+    system_message: str = '',
     developer_message: str = 'You are a helpful assistant',
     model: str = 'gpt-4o',
     client_name: str = '',
@@ -451,6 +456,14 @@ def batch_chat_completions_template(
     presence_penalty: float = 0.0,
     stop: Optional[list[str]] = None
 ):
+    messages = [
+        {"role": "user", "content": input_prompt}
+    ]
+    if system_message:
+        messages.insert(0, {"role": "system", "content": system_message})
+    elif developer_message:
+        messages.insert(0, {"role": "developer", "content": developer_message})
+    
     query_template = {
         "custom_id": custom_id,
         "client_name": client_name,
@@ -459,10 +472,7 @@ def batch_chat_completions_template(
         "body": {
             "model": model,
             "temperature": temperature,
-            "messages": [
-                {"role": "developer", "content": developer_message},
-                {"role": "user", "content": input_prompt}
-            ],
+            "messages": messages,
             "max_tokens": max_tokens,
             "n": n,
             "top_p": top_p,

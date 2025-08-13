@@ -16,6 +16,7 @@ class OpenAI_Engine():
         self,
         input_df: pd.DataFrame,
         prompt_template: str = "",
+        system_message: str = "",
         developer_message: str = "",
         template_map: dict[str, str] = {},
         nick_name: str = "gpt_engine",
@@ -33,6 +34,7 @@ class OpenAI_Engine():
     ):
         self.input_df = input_df
         self.prompt_template = prompt_template
+        self.system_message = system_message
         self.developer_message = developer_message
         self.template_map = template_map
 
@@ -51,6 +53,8 @@ class OpenAI_Engine():
         self.mode = mode
         self.batch_rate_limit = batch_rate_limit
 
+        assert self.n == 1 or self.temperature > 0.0, "When n > 1, temperature must be greater than 0.0"
+
     def prepare_chat_completions_input(self):
         """Prepare batch input file with prompts formatted from the input dataframe."""
         assert self.input_filepath is not None, 'input_filepath is required'
@@ -68,6 +72,7 @@ class OpenAI_Engine():
 
             query = openaiapi.batch_chat_completions_template(
                 input_prompt=input_prompt,
+                system_message=self.system_message,
                 developer_message=self.developer_message,
                 model=self.model,
                 client_name=self.client_name,
@@ -90,8 +95,8 @@ class OpenAI_Engine():
             self.input_filepath.unlink()
 
         for idx, row in tqdm(self.input_df.iterrows(), total=len(self.input_df)):
-            input_prompt = row['prompt']
-
+            input_prompt = row['prompt'] 
+            
             query = openaiapi.batch_completions_template(
                 input_prompt=input_prompt,
                 model=self.model,
@@ -118,7 +123,7 @@ class OpenAI_Engine():
 
             if self.mode == 'chat_completions':
                 if overwrite and Path(self.cache_filepath).exists():
-                    Path(self.cache_filepath).unlink()
+                    raise ValueError(f'The cache file {self.cache_filepath} already exists. Please manually delete this file for security reasons.')
                 openaiapi.generate_parallel_completions(input_filepath=self.input_filepath,
                                                     cache_filepath=self.cache_filepath,
                                                     num_workers=num_workers,
@@ -166,5 +171,7 @@ class OpenAI_Engine():
             output_df = openaiapi.minibatch_retrieve_response(output_dict=output_dict)
             output_df.to_pickle(self.cache_filepath)
             logger.info(f'Results are retrieved and stored at {self.cache_filepath}')
+        else:
+            raise ValueError(f'The cache file {self.cache_filepath} does not exist. Please run the model first.')
 
         return output_df
