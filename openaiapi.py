@@ -68,10 +68,13 @@ def create_client(client_name: str) -> OpenAI:
 # ---------------------------------------------------------------------------
 # Wrapper for chat completions and completions
 # ---------------------------------------------------------------------------
+
+# This is the old version. The new version is under test. Delete this later.
 def generate_chat_completions(
     *,
     input_prompt: str,
-    developer_message: str = "You are a helpful assistant",
+    developer_message: str = "",
+    system_message: str = "",
     model: str = "gpt-4o",
     client_name: str = "openai",
     temperature: float = 0.6,
@@ -85,9 +88,12 @@ def generate_chat_completions(
 ) -> Tuple[Optional[List[str]], List[str], int]:
     client = create_client(client_name)
     messages = [
-        {"role": "system", "content": developer_message},
         {"role": "user", "content": input_prompt},
     ]
+    if system_message != "":
+        messages.insert(0, {"role": "system", "content": system_message})
+    elif developer_message != "":
+        messages.insert(0, {"role": "developer", "content": developer_message})
 
     errors: List[str] = []
     for attempt in range(1, max_attempts + 1):
@@ -111,7 +117,7 @@ def generate_chat_completions(
                 ], errors, attempt
             return [c.message.content for c in resp.choices], errors, attempt
         except RETRYABLE as exc:
-            errors.append(repr(exc))
+            errors.append(exc)
             if attempt == max_attempts:
                 logger.error("%s – final failure", exc)
                 return None, errors, attempt
@@ -128,11 +134,84 @@ def generate_chat_completions(
             logger.warning("%s – retry %d/%d in %.1fs", exc, attempt, max_attempts, delay)
             time.sleep(delay)
         except Exception as exc:
-            errors.append(repr(exc))
+            errors.append(exc)
             logger.error("Non‑retryable error: %s", exc)
             return None, errors, attempt
 
     return None, errors, max_attempts
+
+# def generate_chat_completions(
+#     *,
+#     input_prompt: str,
+#     developer_message: str = "",
+#     system_message: str = "",
+#     model: str = "gpt-4o",
+#     client_name: str = "openai",
+#     temperature: float = 0.6,
+#     max_tokens: int = 4096,
+#     n: int = 1,
+#     top_p: float = 1.0,
+#     frequency_penalty: float = 0.0,
+#     presence_penalty: float = 0.0,
+#     stop: Optional[List[str]] = None,
+#     max_attempts: int = 3,
+# ) -> Tuple[Optional[List[str]], List[str], int]:
+#     client = create_client(client_name)
+#     messages = [
+#         {"role": "user", "content": input_prompt},
+#     ]
+#     if system_message != "":
+#         messages.insert(0, {"role": "system", "content": system_message})
+#     elif developer_message != "":
+#         messages.insert(0, {"role": "developer", "content": developer_message})
+
+#     errors: List[str] = []
+#     for attempt in range(1, max_attempts + 1):
+#         try:
+#             kwargs: Dict[str, Any] = dict(model=model, messages=messages, n=n)
+#             if model == "deepseek-reasoner":
+#                 kwargs["max_completion_tokens"] = max_tokens
+#             else:
+#                 kwargs.update(
+#                     temperature=temperature,
+#                     max_tokens=max_tokens,
+#                     top_p=top_p,
+#                     frequency_penalty=frequency_penalty,
+#                     presence_penalty=presence_penalty,
+#                     stop=stop,
+#                 )
+#             resp = client.chat.completions.create(**kwargs)
+#             if model == "deepseek-reasoner":
+#                 return [
+#                     f"{c.message.reasoning_content}\n</think>\n{c.message.content}"
+#                     for c in resp.choices
+#                 ], errors, attempt
+#             return [c.message.content for c in resp.choices], errors, attempt
+
+#         except Exception as exc:
+#             # capture raw API payload if available
+#             raw_info = None
+#             if hasattr(exc, "response") and exc.response is not None:
+#                 try:
+#                     raw_info = exc.response.json()
+#                 except Exception:
+#                     raw_info = exc.response.text
+#             errors.append(f"{repr(exc)} | raw={raw_info}")
+
+#             # only retry on timeout-like errors
+#             is_timeout = "timeout" in str(type(exc)).lower() or "timeout" in str(exc).lower()
+
+#             if not is_timeout or attempt == max_attempts:
+#                 logger.error("Error (no retry): %s raw=%s", exc, raw_info)
+#                 return None, errors, attempt
+
+#             # exponential back-off with jitter
+#             delay = min(30, 2 ** (attempt - 1)) * random.uniform(0.8, 1.2)
+#             logger.warning("Timeout error on attempt %d/%d – retrying in %.1fs raw=%s",
+#                            attempt, max_attempts, delay, raw_info)
+#             time.sleep(delay)
+
+#     return None, errors, max_attempts
 
 def generate_completions(
     *,
@@ -149,6 +228,7 @@ def generate_completions(
     max_attempts: int = 3,
 ) -> Tuple[Optional[List[str]], List[str], int]:
     client = create_client(client_name)
+    raise Exception("This is not useable yet. Still under test.")
     
     errors: List[str] = []
     for attempt in range(1, max_attempts + 1):
@@ -191,6 +271,7 @@ def generate_completions(
             return None, errors, attempt
 
     return None, errors, max_attempts
+
 # ---------------------------------------------------------------------------
 # Parallel helpers
 # ---------------------------------------------------------------------------
@@ -199,9 +280,20 @@ ResultRow = Tuple[int, Optional[List[str]], List[str], int]
 def _process(idx: int, req: Dict[str, Any], func_name: str) -> ResultRow:
     body = req["body"]
     if func_name == "chat_completions":
+        
+        messages = {}
+        for msg in body["messages"]:
+            if msg["role"] == "user":
+                messages["user"] = msg["content"]
+            elif msg["role"] == "system":
+                messages["system"] = msg["content"]
+            elif msg["role"] == "developer":
+                messages["developer"] = msg["content"]
+        
         response, errs, tries = generate_chat_completions(
-            input_prompt=body["messages"][1]["content"],
-            developer_message=body["messages"][0]["content"],
+            input_prompt=messages["user"],
+            system_message=messages.get("system", ""),
+            developer_message=messages.get("developer", ""),
             model=body["model"],
             client_name=req["client_name"],
             temperature=body.get("temperature", 0.0),
@@ -444,7 +536,7 @@ def batch_completions_template(
 def batch_chat_completions_template(
     input_prompt: str,
     system_message: str = '',
-    developer_message: str = 'You are a helpful assistant',
+    developer_message: str = '',
     model: str = 'gpt-4o',
     client_name: str = '',
     custom_id: str = '',
@@ -459,9 +551,9 @@ def batch_chat_completions_template(
     messages = [
         {"role": "user", "content": input_prompt}
     ]
-    if system_message:
+    if system_message != '':
         messages.insert(0, {"role": "system", "content": system_message})
-    elif developer_message:
+    elif developer_message != '':
         messages.insert(0, {"role": "developer", "content": developer_message})
     
     query_template = {
