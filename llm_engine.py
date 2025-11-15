@@ -315,7 +315,7 @@ class OpenLMEngine:
             print(f"\n→ Switched to {mode.upper()} mode\n")
         
         print("╭─────────────────────────────────────────╮")
-        print("│   Interactive LLM Console              │")
+        print("│   Interactive LLM Console               │")
         print("├─────────────────────────────────────────┤")
         print("│  Tab         : Switch chat/generate     │")
         print("│  Ctrl+Enter  : Submit                   │")
@@ -420,10 +420,11 @@ class OpenLMEngine:
 
 if __name__ == '__main__':
     config = ModelConfig(
-        model_name="Qwen/Qwen3-4B",
+        model_name="open-thoughts/OpenThinker3-1.5B",
+        tensor_parallel_size=1,
         gpu_memory_utilization=0.85,
         dtype="bfloat16",
-        max_tokens=8192,
+        max_tokens=32768,
         temperature=0.6,
         top_p=1.0,
         top_k=-1,
